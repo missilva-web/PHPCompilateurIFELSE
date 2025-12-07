@@ -85,7 +85,13 @@ public class ParserPHP {
             advance();
         }
 
-        while (currentPos < tokens.size() && !match("TAG_PHP")) {
+        while (currentPos < tokens.size()) {
+            // Si on rencontre ?>, on sort proprement
+            if (match("TAG_PHP") && matchValue("?>")) {
+                advance();
+                break;
+            }
+            
             int oldPos = currentPos;
             
             try {
@@ -141,9 +147,9 @@ public class ParserPHP {
             return;
         }
 
+        // Ne pas traiter ?> ici car il peut être à l'intérieur d'un bloc
         if (match("TAG_PHP") && matchValue("?>")) {
-            advance();
-            return;
+            return; // Ne pas avancer, laisser parse() le gérer
         }
 
         if (match("MOT_CLE") && matchValue("class")) {
@@ -180,10 +186,11 @@ public class ParserPHP {
     }
 
     // ===========================
-    // Déclaration de classe
+    // Déclaration de classe - CONTINUE APRÈS ERREURS
     // ===========================
     private void parseClass() {
         System.out.println("Analyse: Declaration de classe (ligne " + current().line + ")");
+        int classLine = current().line;
         advance();
 
         if (!expect("IDENT", "Nom de classe attendu")) {
@@ -221,9 +228,16 @@ public class ParserPHP {
         }
 
         while (!(match("DELIMITEUR") && matchValue("}"))) {
+            // PROTECTION 1: Fin des tokens
             if (currentPos >= tokens.size()) {
-                addError("'}' attendu pour fermer la classe");
-                return;
+                addError("'}' attendu pour fermer la classe (ligne " + classLine + ")");
+                return; // Sortir de parseClass, parse() continue
+            }
+            
+            // PROTECTION 2: Fin du code PHP
+            if (match("TAG_PHP") && matchValue("?>")) {
+                addError("'}' attendu avant '?>' - Classe (ligne " + classLine + ") non fermee");
+                return; // Sortir de parseClass
             }
             
             int oldPos = currentPos;
@@ -239,7 +253,9 @@ public class ParserPHP {
             }
         }
 
-        expectValue("}", "'}' attendu pour fermer la classe");
+        if (match("DELIMITEUR") && matchValue("}")) {
+            advance();
+        }
     }
 
     // ===========================
@@ -274,17 +290,22 @@ public class ParserPHP {
 
         if (match("OPERATEUR", "OPERATEUR_ASSIGN") && matchValue("=")) {
             advance();
-            parseExpression();
+            try {
+                parseExpression();
+            } catch (Exception e) {
+                recoverFromError();
+            }
         }
 
         expectValue(";", "';' attendu apres la declaration de propriete");
     }
 
     // ===========================
-    // Déclaration de fonction
+    // Déclaration de fonction - CONTINUE APRÈS ERREURS
     // ===========================
     private void parseFunction() {
         System.out.println("Analyse: Declaration de fonction (ligne " + current().line + ")");
+        int funcLine = current().line;
         advance();
 
         if (!expect("IDENT", "Nom de fonction attendu")) {
@@ -309,7 +330,11 @@ public class ParserPHP {
                     advance();
                     if (match("OPERATEUR", "OPERATEUR_ASSIGN") && matchValue("=")) {
                         advance();
-                        parseExpression();
+                        try {
+                            parseExpression();
+                        } catch (Exception e) {
+                            recoverFromError();
+                        }
                     }
                 } else {
                     addError("Parametre invalide");
@@ -342,9 +367,16 @@ public class ParserPHP {
         }
 
         while (!(match("DELIMITEUR") && matchValue("}"))) {
+            // PROTECTION 1: Fin des tokens
             if (currentPos >= tokens.size()) {
-                addError("'}' attendu pour fermer la fonction");
-                return;
+                addError("'}' attendu pour fermer la fonction (ligne " + funcLine + ")");
+                return; // Sortir de parseFunction, parse() continue
+            }
+            
+            // PROTECTION 2: Fin du code PHP
+            if (match("TAG_PHP") && matchValue("?>")) {
+                addError("'}' attendu avant '?>' - Fonction (ligne " + funcLine + ") non fermee");
+                return; // Sortir de parseFunction
             }
             
             int oldPos = currentPos;
@@ -360,14 +392,17 @@ public class ParserPHP {
             }
         }
 
-        expectValue("}", "'}' attendu pour fermer la fonction");
+        if (match("DELIMITEUR") && matchValue("}")) {
+            advance();
+        }
     }
 
     // ===========================
-    // Instruction IF/ELSE (CORRIGÉE POUR CONDITIONS MULTIPLES)
+    // Instruction IF/ELSE (CORRIGÉE - CONTINUE APRÈS ERREURS)
     // ===========================
     private void parseIf() {
         System.out.println("Analyse: Instruction IF (ligne " + current().line + ")");
+        int ifLine = current().line;
         advance();
 
         if (!expectValue("(", "'(' attendu apres if")) {
@@ -379,7 +414,11 @@ public class ParserPHP {
                 advance();
             } else {
                 // Condition complète (peut contenir &&, ||, etc.)
-                parseCondition();
+                try {
+                    parseCondition();
+                } catch (Exception e) {
+                    recoverFromError();
+                }
 
                 if (!expectValue(")", "')' attendu apres la condition")) {
                     recoverFromError();
@@ -392,9 +431,16 @@ public class ParserPHP {
             advance();
             
             while (!(match("DELIMITEUR") && matchValue("}"))) {
+                // PROTECTION 1: Fin des tokens
                 if (currentPos >= tokens.size()) {
-                    addError("'}' attendu pour fermer le bloc if");
-                    return;
+                    addError("'}' attendu pour fermer le bloc if (ligne " + ifLine + ")");
+                    return; // Sortir de parseIf, mais parse() continue
+                }
+                
+                // PROTECTION 2: Fin du code PHP - NE PAS RETOURNER, juste signaler l'erreur
+                if (match("TAG_PHP") && matchValue("?>")) {
+                    addError("'}' attendu avant '?>' - Bloc IF (ligne " + ifLine + ") non ferme");
+                    return; // Sortir de parseIf
                 }
                 
                 int oldPos = currentPos;
@@ -410,24 +456,36 @@ public class ParserPHP {
                 }
             }
             
-            expectValue("}", "'}' attendu pour fermer le bloc if");
+            if (match("DELIMITEUR") && matchValue("}")) {
+                advance();
+            }
         } else {
-            parseStatement();
+            try {
+                parseStatement();
+            } catch (Exception e) {
+                recoverFromError();
+            }
         }
 
-        // ELSEIF/ELSE
+        // ELSEIF/ELSE - CONTINUE MÊME APRÈS ERREURS
         while (match("MOT_CLE") && (matchValue("elseif") || matchValue("else"))) {
             if (matchValue("else")) {
+                int elseLine = current().line;
                 advance();
                 
                 if (match("MOT_CLE") && matchValue("if")) {
                     System.out.println("Analyse: Instruction ELSE IF (ligne " + current().line + ")");
+                    int elseifLine = current().line;
                     advance();
                     
                     if (!expectValue("(", "'(' attendu apres else if")) {
                         recoverFromError();
                     } else {
-                        parseCondition();
+                        try {
+                            parseCondition();
+                        } catch (Exception e) {
+                            recoverFromError();
+                        }
                         
                         if (!expectValue(")", "')' attendu apres la condition")) {
                             recoverFromError();
@@ -438,8 +496,15 @@ public class ParserPHP {
                         advance();
                         
                         while (!(match("DELIMITEUR") && matchValue("}"))) {
+                            // PROTECTION 1: Fin des tokens
                             if (currentPos >= tokens.size()) {
-                                addError("'}' attendu pour fermer le bloc else if");
+                                addError("'}' attendu pour fermer le bloc else if (ligne " + elseifLine + ")");
+                                return;
+                            }
+                            
+                            // PROTECTION 2: Fin du code PHP
+                            if (match("TAG_PHP") && matchValue("?>")) {
+                                addError("'}' attendu avant '?>' - Bloc ELSE IF (ligne " + elseifLine + ") non ferme");
                                 return;
                             }
                             
@@ -455,19 +520,32 @@ public class ParserPHP {
                             }
                         }
                         
-                        expectValue("}", "'}' attendu pour fermer le bloc else if");
+                        if (match("DELIMITEUR") && matchValue("}")) {
+                            advance();
+                        }
                     } else {
-                        parseStatement();
+                        try {
+                            parseStatement();
+                        } catch (Exception e) {
+                            recoverFromError();
+                        }
                     }
                 } else {
-                    System.out.println("Analyse: Instruction ELSE (ligne " + current().line + ")");
+                    System.out.println("Analyse: Instruction ELSE (ligne " + elseLine + ")");
                     
                     if (match("DELIMITEUR") && matchValue("{")) {
                         advance();
                         
                         while (!(match("DELIMITEUR") && matchValue("}"))) {
+                            // PROTECTION 1: Fin des tokens
                             if (currentPos >= tokens.size()) {
-                                addError("'}' attendu pour fermer le bloc else");
+                                addError("'}' attendu pour fermer le bloc else (ligne " + elseLine + ")");
+                                return;
+                            }
+                            
+                            // PROTECTION 2: Fin du code PHP
+                            if (match("TAG_PHP") && matchValue("?>")) {
+                                addError("'}' attendu avant '?>' - Bloc ELSE (ligne " + elseLine + ") non ferme");
                                 return;
                             }
                             
@@ -483,20 +561,31 @@ public class ParserPHP {
                             }
                         }
                         
-                        expectValue("}", "'}' attendu pour fermer le bloc else");
+                        if (match("DELIMITEUR") && matchValue("}")) {
+                            advance();
+                        }
                     } else {
-                        parseStatement();
+                        try {
+                            parseStatement();
+                        } catch (Exception e) {
+                            recoverFromError();
+                        }
                     }
                     break;
                 }
             } else {
                 System.out.println("Analyse: Instruction ELSEIF (ligne " + current().line + ")");
+                int elseifLine = current().line;
                 advance();
 
                 if (!expectValue("(", "'(' attendu apres elseif")) {
                     recoverFromError();
                 } else {
-                    parseCondition();
+                    try {
+                        parseCondition();
+                    } catch (Exception e) {
+                        recoverFromError();
+                    }
                     
                     if (!expectValue(")", "')' attendu apres la condition")) {
                         recoverFromError();
@@ -507,8 +596,15 @@ public class ParserPHP {
                     advance();
                     
                     while (!(match("DELIMITEUR") && matchValue("}"))) {
+                        // PROTECTION 1: Fin des tokens
                         if (currentPos >= tokens.size()) {
-                            addError("'}' attendu pour fermer le bloc elseif");
+                            addError("'}' attendu pour fermer le bloc elseif (ligne " + elseifLine + ")");
+                            return;
+                        }
+                        
+                        // PROTECTION 2: Fin du code PHP
+                        if (match("TAG_PHP") && matchValue("?>")) {
+                            addError("'}' attendu avant '?>' - Bloc ELSEIF (ligne " + elseifLine + ") non ferme");
                             return;
                         }
                         
@@ -524,9 +620,15 @@ public class ParserPHP {
                         }
                     }
                     
-                    expectValue("}", "'}' attendu pour fermer le bloc elseif");
+                    if (match("DELIMITEUR") && matchValue("}")) {
+                        advance();
+                    }
                 } else {
-                    parseStatement();
+                    try {
+                        parseStatement();
+                    } catch (Exception e) {
+                        recoverFromError();
+                    }
                 }
             }
         }
@@ -559,7 +661,11 @@ public class ParserPHP {
             
             if (!(match("DELIMITEUR") && matchValue(")"))) {
                 while (true) {
-                    parseExpression();
+                    try {
+                        parseExpression();
+                    } catch (Exception e) {
+                        recoverFromError();
+                    }
                     
                     if (match("DELIMITEUR") && matchValue(",")) {
                         advance();
@@ -584,7 +690,11 @@ public class ParserPHP {
                 
                 if (!(match("DELIMITEUR") && matchValue(")"))) {
                     while (true) {
-                        parseExpression();
+                        try {
+                            parseExpression();
+                        } catch (Exception e) {
+                            recoverFromError();
+                        }
                         
                         if (match("DELIMITEUR") && matchValue(",")) {
                             advance();
@@ -603,7 +713,11 @@ public class ParserPHP {
             advance();
             
             if (!(match("DELIMITEUR") && matchValue(";"))) {
-                parseExpression();
+                try {
+                    parseExpression();
+                } catch (Exception e) {
+                    recoverFromError();
+                }
             }
             
             expectValue(";", "';' attendu apres l'affectation");
@@ -620,7 +734,11 @@ public class ParserPHP {
         advance();
         
         while (true) {
-            parseExpression();
+            try {
+                parseExpression();
+            } catch (Exception e) {
+                recoverFromError();
+            }
             
             if (match("DELIMITEUR") && matchValue(",")) {
                 advance();
@@ -640,7 +758,11 @@ public class ParserPHP {
         advance();
         
         if (!(match("DELIMITEUR") && matchValue(";"))) {
-            parseExpression();
+            try {
+                parseExpression();
+            } catch (Exception e) {
+                recoverFromError();
+            }
         }
         
         expectValue(";", "';' attendu apres return");
