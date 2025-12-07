@@ -7,17 +7,22 @@ public class MainLexerParser {
         // Supprimer toutes les méthodes main() des classes LexerPHP et ParserPHP avant d'utiliser ce programme
         Scanner scanner = new Scanner(System.in);
         
+        // Affichage de l'en-tête avec bordures
         System.out.println("╔═══════════════════════════════════════════════════════╗");
         System.out.println("║   ANALYSEUR LEXICAL ET SYNTAXIQUE PHP - IF/ELSE      ║");
         System.out.println("╚═══════════════════════════════════════════════════════╝");
-        System.out.println();
+        System.out.println("Lancement du programme...\n");
         
         while (true) {
-            System.out.println("\n" + "=".repeat(60));
+            System.out.println("╔═══════════════════════════════════════════════════════╗");
+            System.out.println("║   ANALYSEUR LEXICAL ET SYNTAXIQUE PHP - IF/ELSE      ║");
+            System.out.println("╚═══════════════════════════════════════════════════════╝");
+            System.out.println("=".repeat(60));
             System.out.println("Entrez votre code PHP");
             System.out.println("- Terminez avec '###' OU simplement avec '?>'");
             System.out.println("- Tapez 'exit' pour quitter");
             System.out.println("=".repeat(60));
+            System.out.println();
             
             // Lecture du code multi-lignes
             StringBuilder codeBuilder = new StringBuilder();
@@ -59,14 +64,14 @@ public class MainLexerParser {
             }
             
             try {
-                System.out.println("\n\n" + "=".repeat(60));
+                System.out.println("\n" + "=".repeat(60));
                 System.out.println("📊 PHASE 1 : ANALYSE LEXICALE");
                 System.out.println("=".repeat(60));
                 
                 // Analyse lexicale
                 List<LexerPHP.Token> tokens = LexerPHP.tokenize(code);
                 
-                System.out.println("\n✅ Tokens générés : " + tokens.size());
+                System.out.println("✅ Tokens générés : " + tokens.size());
                 System.out.println("\n--- LISTE DES TOKENS ---");
                 for (LexerPHP.Token token : tokens) {
                     System.out.println(token);
@@ -82,28 +87,32 @@ public class MainLexerParser {
                     System.out.println(type + " : " + count)
                 );
                 
-                System.out.println("\n\n" + "=".repeat(60));
+                System.out.println("\n" + "=".repeat(60));
                 System.out.println("🔍 PHASE 2 : ANALYSE SYNTAXIQUE");
-                System.out.println("=".repeat(60) + "\n");
+                System.out.println("=".repeat(60));
                 
                 // Analyse syntaxique
                 ParserPHP parser = new ParserPHP(tokens);
                 boolean success = parser.parse();
                 
+                System.out.println("\n" + "=".repeat(60));
                 if (success) {
-                    System.out.println("\n✅ VALIDATION COMPLÈTE RÉUSSIE !");
+                    System.out.println("✅ VALIDATION COMPLÈTE RÉUSSIE !");
                     System.out.println("Le code est lexicalement et syntaxiquement correct.");
                 } else {
-                    System.out.println("\n❌ VALIDATION ÉCHOUÉE");
-                    System.out.println("Des erreurs ont été détectées.");
+                    System.out.println("❌ VALIDATION ÉCHOUÉE");
+                    System.out.println("Des erreurs syntaxiques ont été détectées.");
                 }
+                System.out.println("=".repeat(60));
                 
             } catch (Exception e) {
                 System.out.println("\n❌ ERREUR CRITIQUE : " + e.getMessage());
+                System.out.println("Le programme a rencontré une erreur inattendue.");
                 e.printStackTrace();
             }
             
-            System.out.println("\n" + "=".repeat(60));
+            System.out.println("\n" + "─".repeat(60));
+            System.out.println("Prêt pour une nouvelle analyse...\n");
         }
     }
 }
