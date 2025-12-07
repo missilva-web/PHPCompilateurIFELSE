@@ -72,7 +72,7 @@ public class LexerPHP {
     }
 
     // ===========================
-    // DFA pour opérateurs
+    // DFA pour opérateurs (MODIFIÉ)
     // Colonnes : + - * / % = ! < > & | . : ? ^ ~ @ ; , ( ) { } [ ]
     // ===========================
     private static final int[][] MOp = {
@@ -318,7 +318,22 @@ public class LexerPHP {
             }
 
             // ===========================
-            // Opérateurs et délimiteurs
+            // CORRECTION : Opérateurs && et ||
+            // ===========================
+            if (c == '&' && code.charAt(pos + 1) == '&') {
+                tokens.add(new Token("OPERATEUR_LOGIQUE", "&&", line));
+                pos += 2;
+                continue;
+            }
+            
+            if (c == '|' && code.charAt(pos + 1) == '|') {
+                tokens.add(new Token("OPERATEUR_LOGIQUE", "||", line));
+                pos += 2;
+                continue;
+            }
+
+            // ===========================
+            // Opérateurs et délimiteurs (reste inchangé)
             // ===========================
             if ("+-*/%=!<>&|.:?^~@;,(){}[]".indexOf(c) != -1) {
                 int E = 0, start = pos;
