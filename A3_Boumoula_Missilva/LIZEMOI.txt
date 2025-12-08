@@ -1,0 +1,60 @@
+<?php
+if () {  // ❌ Pas de condition
+    echo "Impossible";
+}
+?>
+
+<?php
+if ($x > 5) {
+    echo "Erreur";
+}
+?>
+
+<?php
+if ($x > 5) {
+    echo "Grand"  // ❌ Manque ;
+}
+?>
+
+<?php
+if ($x > 10
+    if ($y < 5) {
+        echo "Test"
+    } else
+        echo "Test2";
+?>
+
+<?php
+if ($x > 10 && $y < 5 {
+    echo "Test";
+}
+?>
+
+<?php
+if ($a > 5) {
+    if ($b < 10 {
+        echo "Test1";
+    } else {
+        echo "Test2";
+}
+?>
+
+<?php
+if ($x > 10) {
+    if ($y < 5) {
+        echo "Test";
+?>
+
+
+<?php
+if ($a > 5 {
+    echo "A";
+}
+
+if ($b < 10) {
+    echo "B";
+
+if ($c == 3 {
+    echo "C";
+
+?>
