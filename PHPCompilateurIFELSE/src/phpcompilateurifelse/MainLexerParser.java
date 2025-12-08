@@ -19,7 +19,7 @@ public class MainLexerParser {
             System.out.println("╚═══════════════════════════════════════════════════════╝");
             System.out.println("=".repeat(60));
             System.out.println("Entrez votre code PHP");
-            System.out.println("- Terminez avec '###' OU simplement avec '?>'");
+            System.out.println("- Terminez avec simplement avec '?>'");
             System.out.println("- Tapez 'exit' pour quitter");
             System.out.println("=".repeat(60));
             System.out.println();
@@ -36,10 +36,6 @@ public class MainLexerParser {
                     System.out.println("\n👋 Au revoir !");
                     scanner.close();
                     return;
-                }
-                
-                if (line.trim().equals("###")) {
-                    break;
                 }
                 
                 codeBuilder.append(line).append("\n");
